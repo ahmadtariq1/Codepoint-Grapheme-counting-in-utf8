@@ -1,0 +1,70 @@
+Codepoint counting testcases:
+; ---------------------------------------------------------
+    ; Test 8: Pure ASCII
+    ; "Hello" (5 bytes). 
+    ; Expected: 5 codepoints.
+    teststr db 'Hello', 0
+
+    ; ---------------------------------------------------------
+    ; Test 9: Valid Multi-byte Mix
+    ; ¢ (2 bytes) + € (3 bytes) + 𐐷 (4 bytes).
+    ; 0xC2,0xA2 + 0xE2,0x82,0xAC + 0xF0,0x90,0x90,0xB7
+    ; Expected: 3 codepoints.
+    teststr db 0xC2, 0xA2, 0xE2, 0x82, 0xAC, 0xF0, 0x90, 0x90, 0xB7, 0
+
+    ; ---------------------------------------------------------
+    ; Test 10: Invalid Leading Byte
+    ; 'A' + 0xFF + 'B'.
+    ; Expected: 3 codepoints ('A', U+FFFD replacement, 'B').
+    teststr db 'A', 0xFF, 'B', 0
+
+    ; ---------------------------------------------------------
+    ; Test 11: Truncated Sequence (Missing continuation byte)
+    ; 'X' + 0xE2, 0x82 (Incomplete Euro sign) + 'Y'.
+    ; Expected: 3 or 4 codepoints depending on exact error recovery overlap.
+    teststr db 'X', 0xE2, 0x82, 'Y', 0
+
+    ; ---------------------------------------------------------
+    ; Test 12: Overlong Encoding (Security Check)
+    ; 'M' + Overlong Null (0xC0, 0x80) + 'N'.
+    ; Expected: 2 codepoints.
+    teststr db 'M', 0xC0, 0x80, 'N', 0
+
+
+Grapheme_counting testcases:
+
+; ---------------------------------------------------------
+    ; Test 1: Basic ASCII
+    ; "A", "B", "C". 
+    ; Expected: 3 graphemes.
+    teststr db 'ABC', 0
+
+    ; ---------------------------------------------------------
+    ; Test 2: CRLF Rule (GB3)
+    ; Carriage Return (0x0D) + Line Feed (0x0A).
+    ; Expected: 1 grapheme.
+    teststr db 0x0D, 0x0A, 0
+
+    ; ---------------------------------------------------------
+    ; Test 3: Combining Marks / Extend (GB9)
+    ; 'e' (0x65) + Combining Acute Accent U+0301 (0xCC, 0x81).
+    ; Expected: 1 grapheme.
+    teststr db 'e', 0xCC, 0x81, 0
+
+    ; ---------------------------------------------------------
+    ; Test 4: Regional Indicator Pair (GB12/GB13)
+    ; Flag of Pakistan 🇵🇰 (P = U+1F1F5, K = U+1F1F0).
+    ; Expected: 1 grapheme.
+    teststr db 0xF0, 0x9F, 0x87, 0xB5, 0xF0, 0x9F, 0x87, 0xB0, 0
+
+    ; ---------------------------------------------------------
+    ; Test 5: Broken Regional Indicator (3 RIs)
+    ; 🇵🇰 + 🇦 (A = U+1F1E6).
+    ; Expected: 2 graphemes.
+    teststr db 0xF0, 0x9F, 0x87, 0xB5, 0xF0, 0x9F, 0x87, 0xB0, 0xF0, 0x9F, 0x87, 0xA6, 0
+
+    ; ---------------------------------------------------------
+    ; Test 6: Invalid UTF-8 Structural Error
+    ; 'A' + 0xFF (Invalid lead byte) + 'B'.
+    ; Expected: 3 graphemes. (The 0xFF becomes a U+FFFD fallback character).
+    teststr db 'A', 0xFF, 'B', 0
