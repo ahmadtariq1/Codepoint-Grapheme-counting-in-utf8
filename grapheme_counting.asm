@@ -1,7 +1,7 @@
 format PE console
 entry start
 
-include 'c:\Users\User\Desktop\fasm\INCLUDE\win32a.inc' ; Set your own path
+include 'win32a.inc' ; Set your own path
 
 
 
@@ -17,9 +17,11 @@ prop_RI          = 7  ; Regional Indicator-Special Case
 
 section '.data' data readable writeable
     ;Testcase here
-    teststr db 'A', 0x0D, 0x0A, 0xF0, 0x9F, 0x87, 0xB5, 0xF0, 0x9F, 0x87, 0xB0, 0x00 
+    teststr db 0xF0, 0x9F, 0x87, 0xB5, 0xF0, 0x9F, 0x87, 0xB0, 0xF0, 0x9F, 0x87, 0xA6, 0
     msg     db 'Total graphemes: %d', 10, 0
     err_msg db 'Error: Malformed sequence.', 10, 0
+    err_msg1 = err_msg
+    err_msg2 = err_msg
 
     
     ; Mask for Other-->Extend(4), ZWJ(5), SpacingMark(6) = (1<<4)|(1<<5)|(1<<6) = 0x70 - Precomputed values!
@@ -53,6 +55,7 @@ start:
     add  esp, 4
 
     cinvoke printf, msg, eax
+
     invoke ExitProcess, 0
 ;--------------------
 count_graphemes:
@@ -72,10 +75,10 @@ count_graphemes:
     test  al, al
     jz    .done
 
-    call  .charntorune
+    call  charntorune
     cmp   edx, 0xFFFD
     je    .handle_error
-    call  .overlong_check
+    call  overlong_check
     test  eax, eax
     jnz   .handle_error
 
@@ -162,117 +165,8 @@ count_graphemes:
     mov   eax, prop_other   
     ret
 
-;calcuting rune(integer)-code done previously
-.charntorune:
-    movzx eax, byte [esi]
-    call  .utfseq
-    test  ebx, ebx
-    jz    .rune_error
-    cmp   ebx, 1
-    je    .lead_1
-    cmp   ebx, 2
-    je    .lead_2
-    cmp   ebx, 3
-    je    .lead_3
-    cmp   ebx, 4
-    je    .lead_4
-    jmp   .rune_error
-.lead_1:
-    movzx edx, al
-    jmp   .cont_done
-.lead_2:
-    movzx edx, al
-    and   edx, 0x1F
-    jmp   .cont_loop
-.lead_3:
-    movzx edx, al
-    and   edx, 0x0F
-    jmp   .cont_loop
-.lead_4:
-    movzx edx, al
-    and   edx, 0x07
-.cont_loop:
-    mov   edi, 1
-.cont_next:
-    cmp   edi, ebx
-    jge   .cont_done
-    movzx eax, byte [esi+edi]
-    mov   ah, al
-    and   ah, 0xC0
-    cmp   ah, 0x80
-    jne   .cont_error       
-    shl   edx, 6
-    and   eax, 0x3F
-    or    edx, eax
-    inc   edi
-    jmp   .cont_next
-.cont_done:
-    ret
-.rune_error:
-    mov   edx, 0xFFFD
-    mov   ebx, 1
-    ret
-.cont_error:
-    mov   edx, 0xFFFD
-    mov   ebx, edi          
-    ret
 
-.utfseq:
-    test  al, 0x80
-    jz    .seq_1
-    mov   bl, al
-    and   bl, 0xC0
-    cmp   bl, 0x80
-    je    .seq_0
-    mov   bl, al
-    and   bl, 0xE0
-    cmp   bl, 0xC0
-    je    .seq_2
-    mov   bl, al
-    and   bl, 0xF0
-    cmp   bl, 0xE0
-    je    .seq_3
-    mov   bl, al
-    and   bl, 0xF8
-    cmp   bl, 0xF0
-    je    .seq_4
-    jmp   .seq_0
-.seq_0: mov ebx, 0
-        ret
-.seq_1: mov ebx, 1
-        ret
-.seq_2: mov ebx, 2
-        ret
-.seq_3: mov ebx, 3
-        ret
-.seq_4: mov ebx, 4
-        ret
-
-.overlong_check:
-    cmp   ebx, 1
-    je    .ol_valid
-    cmp   ebx, 2
-    jne   .check3
-    cmp   edx, 0x7F
-    jg    .ol_valid
-    jmp   .ol_invalid
-.check3:
-    cmp   ebx, 3
-    jne   .check4
-    cmp   edx, 0x7FF
-    jg    .ol_valid
-    jmp   .ol_invalid
-.check4:
-    cmp   edx, 0xFFFF
-    jg    .ol_valid
-.ol_invalid:
-    mov   eax, 1
-    ret
-.ol_valid:
-    xor   eax, eax
-    ret
-
-
+include "utf8_decode.inc"
 section '.idata' import data readable
     library kernel32, 'kernel32.dll', \
             msvcrt, 'msvcrt.dll'

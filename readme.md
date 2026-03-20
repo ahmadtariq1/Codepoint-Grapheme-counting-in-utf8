@@ -3,6 +3,10 @@ Counting codepoints and graphemes [visible characters]
 Quick note: Please update your own path for including win32a.inc to run it properly
 check testcases for testing
 
+This doc contains explanation and specification/implementation details: https://docs.google.com/document/d/1__C2qngd7kEUPYF-H4b1DijanunrZPBQwPgOs9SddOw/edit?usp=sharing
+
+
+Summary
 Codepoint/Rune counting:
 Variable length parsing: Based on the specification, simple comparisons + bitwise operations can help in finding the number of bytes in a codepoint. The important part is to reconstruct from distributed bytes into a scalar value which is done through bitmasking + shift left operation. Refer to .charntorune for checking implementation.
 
